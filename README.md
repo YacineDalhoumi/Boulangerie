@@ -137,7 +137,7 @@ L'application ne propose pas d'inscription. Dans le tableau de bord Supabase :
 1. Sur [vercel.com](https://vercel.com), choisissez **Add New > Project** et importez le dépôt GitHub `Boulangerie`.
 2. Vercel détecte Vite tout seul : commande de build `npm run build`, dossier de sortie `dist`.
 3. Dans **Environment Variables**, ajoutez `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY`, avec les mêmes valeurs que dans `.env.local`.
-4. Cliquez sur **Deploy**. Le fichier `vercel.json` redirige toutes les routes vers `index.html`, ce qui permet de recharger `/saisie` ou `/historique` sans erreur 404.
+4. Cliquez sur **Deploy**. ⚠️ Les variables sont intégrées **au moment du build** : si vous les ajoutez ou les modifiez après un déploiement, relancez-le (**Deployments > ⋯ > Redeploy**). S'il en manque une, l'application affiche « Configuration Supabase manquante » au lieu de l'écran de connexion. Le fichier `vercel.json` redirige toutes les routes vers `index.html`, ce qui permet de recharger `/saisie` ou `/historique` sans erreur 404.
 5. Dans Supabase, **Authentication > URL Configuration**, mettez l'URL Vercel (par exemple `https://boulangerie.vercel.app`) dans **Site URL**.
 
 Chaque push sur `main` redéploie automatiquement l'application.
