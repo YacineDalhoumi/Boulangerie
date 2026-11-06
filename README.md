@@ -12,6 +12,9 @@ Application web de suivi des recettes quotidiennes d'une boulangerie. Elle rempl
 | **Connexion** | Email et mot de passe (Supabase Auth). Aucune inscription depuis l'application. |
 | **Saisie du jour** | La date est pré-remplie à aujourd'hui. Le relevé de **14h est obligatoire**, la **clôture de 20h30 est facultative** : laissée vide, elle est « inconnue » et pourra être complétée plus tard. On y saisit aussi les sorties d'espèces, les autres paiements, le fond de caisse (120 € par défaut), un commentaire et, en option, la répartition par catégorie. Une date déjà saisie s'ouvre en modification et peut être supprimée. Après l'enregistrement, la base affiche les résultats calculés (paniers moyens, écarts). |
 | **Tableau de bord** | Le CA du jour, de la semaine, du mois et de l'année, chacun comparé à la période précédente en € et en % : <br>• le jour : avec la même date du mois précédent ; <br>• le mois : avec le **mois précédent complet** et avec la même période du mois précédent ; <br>• la semaine et l'année : avec la même portion de la période précédente et avec la période précédente complète. <br>On y trouve aussi : <br>• les courbes de CA quotidien et mensuel ; <br>• le CA moyen par jour de la semaine ; <br>• la meilleure et la pire journée du mois ; <br>• les clôtures à compléter ; <br>• la répartition par catégorie, si elle est saisie. |
+| **Invendus** | Une ligne par produit et par jour : quantité (nombre entier), prix unitaire (celui du catalogue par défaut), cause. On peut modifier et supprimer chaque ligne. Pour une période (ce mois, mois dernier, 30 derniers jours, année, tout), la page montre : <br>• la valeur des invendus et leur part du CA de clôture ; <br>• un graphique de la valeur des invendus par jour ; <br>• le classement par produit ou par catégorie ; <br>• le **taux d'invendus**. |
+| **Ventes par produit** | Le même principe pour les quantités vendues (source ou remarque à la place de la cause). Pour la période : le CA par produit et par catégorie avec leur part, et la part du CA de clôture couverte par les ventes saisies. |
+| **Produits** | Le catalogue : nom, catégorie et prix de vente par défaut. On peut ajouter, modifier, désactiver un produit (il disparaît des listes sans perdre son historique) ou le supprimer s'il n'a encore aucune ligne. On peut aussi ajouter une catégorie. |
 | **Historique** | Tableau filtrable par période (raccourcis ou dates libres), avec tri par colonne et recherche (commentaire, jour, sortie d'espèces ou date JJ/MM/AAAA). Un filtre affiche seulement les clôtures inconnues. **Export Excel (.xlsx) et CSV** des lignes filtrées. |
 
 ## Schéma de la base (Supabase)
@@ -51,6 +54,10 @@ Contraintes :
 
 **`ventes_categories`** : CA d'une journée par catégorie (`journee_id`, `categorie_id`, `montant` ≥ 0), avec une ligne au plus par couple journée/catégorie.
 
+**`produits`** : catalogue (`categorie_id`, `nom`, `prix_vente`, `actif`). Le nom est unique par utilisateur, sans tenir compte des majuscules (index `produits_nom_unique`). Un produit déjà utilisé ne peut pas être supprimé (`on delete restrict`).
+
+**`invendus`** et **`ventes_produits`** : une ligne par date et par produit (contraintes `invendus_produit_date_unique` et `ventes_produits_produit_date_unique`). Colonnes : `date_jour`, `produit_id`, `quantite` (entier > 0), `prix_unitaire` (≥ 0) et `cause` (invendus) ou `source` (ventes). Si le prix unitaire n'est pas fourni, le trigger `prix_unitaire_par_defaut()` reprend celui du catalogue. Il est ensuite figé sur la ligne : changer le prix d'un produit ne modifie pas l'historique.
+
 ### Vues
 
 Toutes les vues sont en `security_invoker` : elles respectent la RLS. Le CA d'une journée est le **CA de clôture**. Les clôtures inconnues sont exclues des sommes et des moyennes, et comptées à part (`jours_sans_cloture`).
@@ -64,6 +71,10 @@ Toutes les vues sont en `security_invoker` : elles respectent la RLS. Le CA d'un
 | `v_ca_annee` | Les mêmes indicateurs par année. |
 | `v_ca_jour_semaine` | Par jour de la semaine : nombre de journées, CA moyen, minimum, maximum et panier moyen. |
 | `v_ca_categorie` | Par mois et par catégorie : CA et part en %. |
+| `v_invendus` | Une ligne d'invendu avec produit, catégorie et **valeur = quantité × prix unitaire**. |
+| `v_ventes_produits` | Une ligne de vente avec produit, catégorie et **CA produit = quantité × prix unitaire**. |
+| `v_invendus_jour` | Par jour : nombre de produits, quantité, valeur des invendus, CA de clôture et part de ce CA (%). |
+| `v_ventes_produits_jour` | Par jour : nombre de produits, quantité, CA des produits saisis, CA de clôture et part du CA couverte (%). |
 
 Champs calculés dans `v_journees` :
 
@@ -82,6 +93,8 @@ Champs calculés dans `v_journees` :
 |---|---|
 | `comparer_periodes(p_granularite, p_date_ref)` | `p_granularite` vaut `jour`, `semaine`, `mois` ou `annee`. Renvoie : <br>• le CA de la période en cours jusqu'à `p_date_ref`, avec le nombre de jours connus et de jours sans clôture ; <br>• l'écart en € et en % avec la même portion de la période précédente ; <br>• l'écart avec la période précédente complète. <br>Pour `jour`, la comparaison se fait avec la même date du mois précédent. |
 | `meilleur_pire_jour(p_debut, p_fin)` | La meilleure et la pire journée (clôture connue) de l'intervalle. |
+| `synthese_produits(p_debut, p_fin, p_regroupement)` | Synthèse d'une période, par `produit`, par `categorie` ou en `total`. Elle renvoie la quantité vendue, le CA et sa part, la quantité invendue, sa valeur et sa part, et le **taux d'invendus**, soit invendus / (vendus + invendus). Ce taux n'est calculé que sur les jours où le produit a des ventes saisies **et** où des invendus ont été saisis. Un produit absent des invendus ce jour-là compte pour 0. |
+| `prix_unitaire_par_defaut()` | Trigger qui remplit le prix unitaire à partir du catalogue. |
 | `set_updated_at()` | Trigger de mise à jour de `updated_at`. |
 
 Toutes les fonctions sont en `security invoker` avec `search_path` vide. Seul le rôle `authenticated` peut les exécuter.
@@ -150,6 +163,6 @@ supabase/migrations/   migrations SQL (tables, vues, fonctions)
 scripts/               script d'import de l'Excel
 docs/                  rapport d'import
 src/lib/               client Supabase, types, formatage FR, export Excel/CSV, messages d'erreur
-src/pages/             Connexion, TableauDeBord, Saisie, Historique
-src/components/        mise en page et composants d'interface
+src/pages/             Connexion, TableauDeBord, Saisie, Historique, Invendus, VentesProduits, Produits
+src/components/        mise en page, composants d'interface, LignesProduits (commun invendus / ventes)
 ```

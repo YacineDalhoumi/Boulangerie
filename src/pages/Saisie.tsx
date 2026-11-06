@@ -262,7 +262,7 @@ export default function Saisie() {
 
           {calcul && <Resume v={calcul} />}
 
-          <div className="sticky bottom-20 z-10 flex gap-2 rounded-2xl border border-line bg-surface p-3 shadow-lg md:bottom-4">
+          <div className="sticky bottom-20 z-10 lg:bottom-4 flex gap-2 rounded-2xl border border-line bg-surface p-3 shadow-lg">
             <Bouton type="submit" disabled={envoi} className="flex-1 h-12">
               {envoi ? 'Enregistrement…' : journee ? 'Enregistrer les modifications' : 'Enregistrer la journée'}
             </Bouton>

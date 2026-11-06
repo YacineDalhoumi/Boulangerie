@@ -8,6 +8,9 @@ import Connexion from './pages/Connexion'
 const TableauDeBord = lazy(() => import('./pages/TableauDeBord'))
 const Saisie = lazy(() => import('./pages/Saisie'))
 const Historique = lazy(() => import('./pages/Historique'))
+const Invendus = lazy(() => import('./pages/Invendus'))
+const VentesProduits = lazy(() => import('./pages/VentesProduits'))
+const Produits = lazy(() => import('./pages/Produits'))
 
 function Protege({ children }: { children: React.ReactNode }) {
   const { session, chargement } = useAuth()
@@ -28,6 +31,9 @@ export default function App() {
       <Route path="/" element={<Protege><TableauDeBord /></Protege>} />
       <Route path="/saisie" element={<Protege><Saisie /></Protege>} />
       <Route path="/historique" element={<Protege><Historique /></Protege>} />
+      <Route path="/invendus" element={<Protege><Invendus /></Protege>} />
+      <Route path="/ventes-produits" element={<Protege><VentesProduits /></Protege>} />
+      <Route path="/produits" element={<Protege><Produits /></Protege>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

@@ -1,40 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { aujourdhui, dateFr, decalerJours, eur, eurSigne, nombre } from '../lib/format'
+import { dateFr, eur, eurSigne, nombre } from '../lib/format'
+import { bornes, PRESETS, type Preset } from '../lib/periodes'
 import { messageErreur } from '../lib/erreurs'
 import { exporterCsv, exporterExcel, type LigneExport } from '../lib/export'
 import { Bandeau, Bouton, Carte } from '../components/ui'
 
-type Preset = 'mois' | 'mois_prec' | '30j' | 'annee' | 'tout' | 'perso'
 type Tri = { colonne: keyof LigneExport; asc: boolean }
-
-const PRESETS: { id: Preset; label: string }[] = [
-  { id: 'mois', label: 'Ce mois' },
-  { id: 'mois_prec', label: 'Mois dernier' },
-  { id: '30j', label: '30 derniers jours' },
-  { id: 'annee', label: 'Cette année' },
-  { id: 'tout', label: 'Tout' },
-  { id: 'perso', label: 'Personnalisée' },
-]
-
-/** Bornes de dates d'un raccourci (paramètres de filtre, pas de calcul métier) */
-function bornes(p: Preset): { du: string; au: string } {
-  const auj = aujourdhui()
-  const [a, m] = auj.split('-').map(Number)
-  const premier = `${a}-${String(m).padStart(2, '0')}-01`
-  switch (p) {
-    case 'mois': return { du: premier, au: auj }
-    case 'mois_prec': {
-      const pa = m === 1 ? a - 1 : a
-      const pm = m === 1 ? 12 : m - 1
-      return { du: `${pa}-${String(pm).padStart(2, '0')}-01`, au: decalerJours(premier, -1) }
-    }
-    case '30j': return { du: decalerJours(auj, -29), au: auj }
-    case 'annee': return { du: `${a}-01-01`, au: auj }
-    default: return { du: '', au: '' }
-  }
-}
 
 const COLONNES: { cle: keyof LigneExport; titre: string; type: 'date' | 'texte' | 'eur' | 'ecart' | 'nb' }[] = [
   { cle: 'date_jour', titre: 'Date', type: 'date' },
